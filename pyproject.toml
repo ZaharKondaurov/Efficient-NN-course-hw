@@ -1,0 +1,26 @@
+[project]
+name = "efficient-nn-course-hw"
+version = "0.1.0"
+description = "Reproducible environment for the Efficient NN course homework"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "matplotlib",
+    "numpy",
+    "nvidia-ml-py",
+    "pandas",
+    "scikit-learn>=1.9.1",
+    "scipy",
+    "torch",
+    "tqdm>=4.70.1",
+]
+
+[tool.uv]
+package = false
+
+[[tool.uv.index]]
+name = "pytorch-cu128"
+url = "https://download.pytorch.org/whl/cu128"
+explicit = true
+
+[tool.uv.sources]
+torch = { index = "pytorch-cu128" }

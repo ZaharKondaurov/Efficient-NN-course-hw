@@ -1,0 +1,21 @@
+{
+  "theta_latency": {
+    "theta_0": 1.0553523386353804e-07,
+    "theta_flops": 2.1612214312201663e-13,
+    "theta_bytes": 2.149017222271789e-13,
+    "model": "theta0 + max(theta_flops*FLOPs, theta_bytes*Bytes)",
+    "latency_repeats": 30,
+    "warmup_iters": 5
+  },
+  "theta_energy": {
+    "theta_static": 3.816685880722885e-22,
+    "theta_flops": -3.63120771091659e-10,
+    "theta_bytes": 1.8509328698284743e-08,
+    "model": "theta_static*Latency + theta_flops*FLOPs + theta_bytes*Bytes",
+    "energy_reps": 50
+  },
+  "n_samples": 63,
+  "oom": [],
+  "latency_mae_s": 0.00041637889253301165,
+  "energy_mae_j": 0.11658468915834402
+}
