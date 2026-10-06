@@ -11,6 +11,7 @@ dependencies = [
     "scikit-learn>=1.9.1",
     "scipy",
     "torch",
+    "torchvision",
     "tqdm>=4.70.1",
 ]
 
@@ -24,3 +25,4 @@ explicit = true
 
 [tool.uv.sources]
 torch = { index = "pytorch-cu128" }
+torchvision = { index = "pytorch-cu128" }

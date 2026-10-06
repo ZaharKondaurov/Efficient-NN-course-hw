@@ -1,0 +1,4 @@
+data/
+experiments/*/models/
+results/*.pt
+__pycache__/
