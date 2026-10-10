@@ -115,12 +115,14 @@ Stable rank матриц ведёт себя так же, как и в стат�
 </figure>
 
 
-Прунинг и tucker-2 decomposition над ResNet-18 показывает сильное падение качества для ZerO инициализации. Хотя при малом ранге такого быть не должно.
-
-
 <img src="experiments/cifar10_resnet18/compression_cifar10_resnet18_bn.png" alt="rn18_ranks" />
   <figcaption>Рис. 5. Слева график accuracy в зависимости от процента прунинга. Справа график зависимости accuracy от ранга tucker-2 decomposition</figcaption>
 </figure>
+
+
+</br>
+Прунинг и tucker-2 decomposition над ResNet-18 показывает сильное падение качества для ZerO инициализации. Хотя при малом ранге такого быть не должно.
+
 
 ### Выводы
 
