@@ -1,5 +1,3 @@
-"""ResNets of configurable depth (He et al., 2016) for the ZerO experiments."""
-
 from __future__ import annotations
 
 import torch
@@ -48,7 +46,7 @@ class BasicBlock(nn.Module):
         self.bn2 = make_norm(norm, planes)
         self.downsample = _shortcut(in_planes, planes * self.expansion, stride, norm)
         self.last_conv = self.conv2
-        # ReZero: x -> x + α F(x), α = 0 at init (Bachlechner et al., 2020).
+        # ReZero: x -> x + α F(x), α = 0 at init
         self.alpha: nn.Parameter | None = nn.Parameter(torch.zeros(1)) if rezero else None
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:

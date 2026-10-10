@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-"""CLI: Transformer on WikiText-2, sweeping depth and initialization (Table 4)."""
 
 from __future__ import annotations
 

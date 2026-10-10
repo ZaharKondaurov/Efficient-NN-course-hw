@@ -1,5 +1,3 @@
-"""Model-complexity probes from Fig. 6: magnitude pruning and Tucker-2."""
-
 from __future__ import annotations
 
 import copy

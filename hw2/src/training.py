@@ -1,5 +1,3 @@
-"""CNN training for the ZerO experiments (Tables 2–3, Figs. 4–6)."""
-
 from __future__ import annotations
 
 import json
@@ -27,7 +25,7 @@ from .resnet import resnet
 # paper and follow the standard ResNet recipes.
 PAPER_HPARAMS: dict[str, dict[str, Any]] = {
     "cifar10": {
-        "depth": 18, "epochs": 100, "batch_size": 256, "lr": 0.1, "momentum": 0.9,
+        "depth": 18, "epochs": 120, "batch_size": 256, "lr": 0.1, "momentum": 0.9,
         "weight_decay": 1e-4, "warmup_epochs": 10, "milestones": (50, 75),
     },
     "imagenet": {

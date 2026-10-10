@@ -1,5 +1,3 @@
-"""Transformer LM training on WikiText-2 (Table 4: test perplexity vs. depth)."""
-
 from __future__ import annotations
 
 import json

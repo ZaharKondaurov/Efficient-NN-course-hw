@@ -1,4 +1,5 @@
 data/
 experiments/*/models/
+experiments/*/runs/
 results/*.pt
 __pycache__/

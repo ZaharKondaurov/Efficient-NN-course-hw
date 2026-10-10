@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-"""CLI: train ResNets with ZerO / Kaiming / Xavier over several seeds."""
 
 from __future__ import annotations
 

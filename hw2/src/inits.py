@@ -1,5 +1,3 @@
-"""Initialization schemes: ZerO, Kaiming, Xavier, ReZero."""
-
 from __future__ import annotations
 
 import torch

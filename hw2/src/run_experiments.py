@@ -1,19 +1,4 @@
 #!/usr/bin/env python3
-"""
-Run k seeds x {ZerO, Kaiming, Xavier} on one dataset with the paper's hyperparameters.
-
-Experiment folder layout:
-    <exp_dir>/models/last_<tag>_seed<N>.pt   trained models
-    <exp_dir>/runs/run_<tag>_seed<N>.json    per-run logs (history, ranks)
-    <exp_dir>/metrics.json                   all metrics + mean ± std per init
-    <exp_dir>/summary.md                     table: top-1 test error / accuracy
-    <exp_dir>/training_curves.png            loss, error, accuracy per epoch
-    <exp_dir>/quality_metrics.png            top-1 error / accuracy, mean ± std per init
-    <exp_dir>/stable_rank.png                stable rank of layer{2,3,4}.0.conv1 vs. iteration
-    <exp_dir>/kernel_ranks.png               kernel ranks of every conv layer
-
-``--plot-only`` rebuilds the figures from an existing metrics.json.
-"""
 
 from __future__ import annotations
 
@@ -32,6 +17,7 @@ from hw2.src.data import DATASETS
 from hw2.src.inits import CNN_INITS
 from hw2.src.metrics import mean_std
 from hw2.src.report import (
+    plot_kernel_rank_by_layer,
     plot_kernel_ranks_all_layers,
     plot_quality_metrics,
     plot_stable_rank_trajectories,
@@ -53,6 +39,7 @@ def parse_args() -> argparse.Namespace:
                    help="bn = BatchNorm; none = learnable scalar scale/bias (no BN)")
     p.add_argument("--epochs", type=int, default=None)
     p.add_argument("--warmup-epochs", type=int, default=None)
+    p.add_argument("--lr", type=float, default=0.1)
     p.add_argument("--milestones", nargs="+", type=int, default=None)
     p.add_argument("--batch_size", type=int, default=64)
     p.add_argument("--exp-dir", type=Path, default=None,
@@ -192,6 +179,7 @@ def make_figures(per_init: dict[str, list[dict]], exp_dir: Path, title: str) -> 
     plot_training_curves(per_init, exp_dir / "training_curves.png", title)
     plot_quality_metrics(per_init, exp_dir / "quality_metrics.png", title)
     plot_stable_rank_trajectories(per_init, exp_dir / "stable_rank.png", title)
+    plot_kernel_rank_by_layer(per_init, exp_dir / "kernel_rank_vs_layer.png", title, key="rank")
     plot_kernel_ranks_all_layers(per_init, exp_dir / "kernel_ranks.png", title)
 
 

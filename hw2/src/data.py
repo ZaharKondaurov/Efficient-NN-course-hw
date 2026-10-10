@@ -1,5 +1,3 @@
-"""Datasets: CIFAR-10, ImageNet (ImageFolder) and WikiText-2."""
-
 from __future__ import annotations
 
 import urllib.request

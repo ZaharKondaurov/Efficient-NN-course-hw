@@ -1,6 +1,4 @@
 #!/usr/bin/env python3
-"""Aggregate results into paper-style tables (mean ± std) and figures."""
-
 from __future__ import annotations
 
 import argparse
@@ -93,21 +91,17 @@ def lm_table(runs: list[dict]) -> str:
     return "\n".join(lines)
 
 
-STABLE_RANK_ROWS = [
-    ("residual_stable_rank", "stable rank of W - W_ZerO"),
-    ("stable_rank", "stable rank of W"),
-]
+STABLE_RANK_KEY = "residual_stable_rank"
 
 
 def plot_stable_rank_trajectories(
     per_init: dict[str, list[dict]],
     path: Path,
     title: str,
-    rows: list[tuple[str, str]] = STABLE_RANK_ROWS,
 ) -> None:
     """
-    Fig. 5: stable rank of the first conv in the 2nd/3rd/4th residual groups vs.
-    iteration, mean ± std over seeds per init. Rows: residual component and raw W.
+    Fig. 5: residual stable rank of the first conv in the 2nd/3rd/4th residual
+    groups vs. iteration, mean ± std over seeds per init.
     """
     per_init = {i: [r for r in rs if r.get("rank_trajectory")] for i, rs in sorted(per_init.items())}
     per_init = {i: rs for i, rs in per_init.items() if rs}
@@ -116,24 +110,22 @@ def plot_stable_rank_trajectories(
     first_run = next(iter(per_init.values()))[0]
     convs = list(first_run["rank_trajectory"][0]["convs"])
 
-    fig, axes = plt.subplots(len(rows), len(convs), figsize=(4.8 * len(convs), 3.6 * len(rows)),
-                             squeeze=False)
-    for row, (key, label) in enumerate(rows):
-        for col, conv in enumerate(convs):
-            ax = axes[row, col]
-            for k, (init, rs) in enumerate(per_init.items()):
-                n = min(len(r["rank_trajectory"]) for r in rs)
-                its = np.array([p["iter"] for p in rs[0]["rank_trajectory"][:n]])
-                vals = np.array([[p["convs"][conv][key] for p in r["rank_trajectory"][:n]]
-                                 for r in rs])
-                _band(ax, its, vals, init, color=f"C{k}")
-            max_rank = first_run["rank_trajectory"][0]["convs"][conv]["max_rank"]
-            ax.axhline(max_rank, color="k", ls="--", lw=1, label="max rank")
-            ax.set_title(f"{conv} ({label})", fontsize=10)
-            ax.set_xlabel("iteration")
-            ax.set_ylabel(label)
-            ax.grid(alpha=0.3)
-            ax.legend(fontsize=8)
+    fig, axes = plt.subplots(1, len(convs), figsize=(4.8 * len(convs), 3.6), squeeze=False)
+    for col, conv in enumerate(convs):
+        ax = axes[0, col]
+        for k, (init, rs) in enumerate(per_init.items()):
+            n = min(len(r["rank_trajectory"]) for r in rs)
+            its = np.array([p["iter"] for p in rs[0]["rank_trajectory"][:n]])
+            vals = np.array([[p["convs"][conv][STABLE_RANK_KEY] for p in r["rank_trajectory"][:n]]
+                             for r in rs])
+            _band(ax, its, vals, init, color=f"C{k}")
+        max_rank = first_run["rank_trajectory"][0]["convs"][conv]["max_rank"]
+        ax.axhline(max_rank, color="k", ls="--", lw=1, label="max rank")
+        ax.set_title(conv, fontsize=10)
+        ax.set_xlabel("iteration")
+        ax.set_ylabel("stable rank")
+        ax.grid(alpha=0.3)
+        ax.legend(fontsize=8)
     fig.suptitle(f"{title}: stable rank during training")
     fig.tight_layout()
     fig.savefig(path, dpi=150)
@@ -194,6 +186,46 @@ KERNEL_RANK_METRICS = [
     ("residual_rank", "matrix rank of W - W_ZerO"),
     ("residual_stable_rank", "stable rank of W - W_ZerO"),
 ]
+
+
+def plot_kernel_rank_by_layer(
+    per_init: dict[str, list[dict]],
+    path: Path,
+    title: str,
+    key: str = "rank",
+) -> None:
+    """
+    Line plot (Fig. 6, left): kernel rank vs. conv-layer order.
+    X = layer index (0 .. n_conv-1), Y = mean ± std over seeds.
+    """
+    per_init = {i: [r for r in rs if r.get("kernel_ranks") and r["final"]]
+                for i, rs in sorted(per_init.items())}
+    per_init = {i: rs for i, rs in per_init.items() if rs}
+    if not per_init:
+        return
+    first = next(iter(per_init.values()))[0]["kernel_ranks"]
+    layers = list(first)
+    x = np.arange(len(layers))
+
+    fig, ax = plt.subplots(figsize=(10, 4.5))
+    for k, (init, rs) in enumerate(per_init.items()):
+        vals = np.array([[r["kernel_ranks"][n][key] for n in layers] for r in rs], dtype=float)
+        mean, std = vals.mean(0), vals.std(0)
+        ax.plot(x, mean, marker="o", ms=4, label=init, color=f"C{k}")
+        if len(rs) > 1:
+            ax.fill_between(x, mean - std, mean + std, color=f"C{k}", alpha=0.2)
+    if key in ("rank", "residual_rank"):
+        ax.plot(x, [first[n]["max_rank"] for n in layers], "k--", lw=1, label="max rank")
+    ax.set_xlabel("conv layer index")
+    ax.set_ylabel("kernel rank" if key == "rank" else key.replace("_", " "))
+    ax.set_xticks(x)
+    ax.set_xticklabels([str(i) for i in x])
+    ax.grid(alpha=0.3)
+    ax.legend()
+    ax.set_title(f"{title}: kernel rank vs. conv layer")
+    fig.tight_layout()
+    fig.savefig(path, dpi=150)
+    plt.close(fig)
 
 
 def plot_kernel_ranks_all_layers(per_init: dict[str, list[dict]], path: Path, title: str) -> None:
@@ -376,6 +408,9 @@ def main() -> None:
             by_group[group][init].append(r)
         for group, per_init in by_group.items():
             plot_stable_rank_trajectories(per_init, fig_dir / f"stable_rank_{group}.png", group)
+            plot_kernel_rank_by_layer(
+                per_init, fig_dir / f"kernel_rank_vs_layer_{group}.png", group, key="rank"
+            )
             plot_kernel_ranks_all_layers(per_init, fig_dir / f"kernel_rank_{group}.png", group)
             plot_quality_metrics(per_init, fig_dir / f"quality_metrics_{group}.png", group)
             plot_training_curves(per_init, fig_dir / f"training_curves_{group}.png", group)

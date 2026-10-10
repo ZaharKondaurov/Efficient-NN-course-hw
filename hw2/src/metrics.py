@@ -1,5 +1,3 @@
-"""Metrics from the ZerO paper: top-1 error, perplexity, stable rank, kernel rank."""
-
 from __future__ import annotations
 
 import copy
@@ -11,7 +9,7 @@ import torch.nn as nn
 
 from .zero_init import apply_zero_init
 
-RANK_TOL = 1e-4  # tolerance of np.linalg.matrix_rank in the authors' code
+RANK_TOL = 1e-4
 
 
 def top1_error(logits: torch.Tensor, targets: torch.Tensor) -> float:

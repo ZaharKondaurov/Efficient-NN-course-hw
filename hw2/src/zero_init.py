@@ -1,5 +1,3 @@
-"""ZerO initialization (Zhao et al., arXiv:2110.12661), Algorithms 1–2."""
-
 from __future__ import annotations
 
 import math

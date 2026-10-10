@@ -1,7 +1,5 @@
 # HW2 — ZerO Initialization (arXiv:2110.12661)
 
-Воспроизведение экспериментов статьи *ZerO Initialization: Initializing Neural Networks with only Zeros and Ones*: ResNet на CIFAR-10 / ImageNet, сверхглубокие ResNet без BN, Transformer на WikiText-2, анализ рангов, прунинг и Tucker-2.
-
 ## Структура
 
 ```
@@ -23,86 +21,116 @@ hw2/src/
 
 Зависимости в корневом `pyproject.toml` (`uv sync`). Все команды запускаются из корня репозитория.
 
+Замеры выполнены на одной **NVIDIA GeForce RTX 4060 Laptop GPU** (≈7.8 ГиБ доступно PyTorch), драйвер **570.211.01**.
+
 ## Эксперименты
 
-### Основной скрипт: k запусков × {ZerO, Kaiming, Xavier, ReZero}
+
+### Обучение ResNet на CIFAR-10
+
+
+Первый эксперимент — обучение ResNet-18 и ResNet-50 на CIFAR-10. Отличие от эксперимента из статьи в том, что ResNet-50 было решено обучить и протестировать на другом датасете, т.к. ImageNet слишком большой. Также было всего 5 запусков, вместо 10, и сокращено количество эпох, чтобы не затягивать обучение моделей надолго.
+
+Помимо этого, было решено сравнить с другим способом инициализации ReZero. ReZero: в каждом residual-блоке x ← x + α F(x) с α = 0 на старте; веса свёрток — случайно инициализированы. Из-за α = 0 свёрточные слои ведут себя как identity.
 
 ```bash
-.venv/bin/python hw2/src/run_experiments.py --dataset cifar10 -k 10 --amp
-# только ReZero (сравнение со статьёй ReZero / Table 3 ZerO):
-.venv/bin/python hw2/src/run_experiments.py --dataset cifar10 --inits rezero -k 5 --amp
+.venv/bin/python hw2/src/run_experiments.py --dataset cifar10 --depth 18 -k 5 --amp
+.venv/bin/python hw2/src/run_experiments.py --dataset cifar10 --depth 50 -k 5 --epochs 60 --warmup-epochs 5 --milestones 20 35 50 --amp
 ```
 
-**ReZero** ([arXiv:2003.04887](https://arxiv.org/abs/2003.04887), [repo](https://github.com/majumderb/rezero)): в каждом residual-блоке `x ← x + α F(x)` с `α = 0` на старте; веса свёрток — Kaiming, BN сохраняется. Для Transformer — слой без LayerNorm и с общим `resweight` на attention+FFN (как RZTX).
+|Модель|Метод|Test error|
+| - | - | - |
+| ResNet-18  |   ZerO    | `9.73 ± 1.13` (prop.) |
+| ResNet-18  |   Kaiming | `6.58 ± 0.21` |
+| ResNet-18  |   Xavier  | `6.24 ± 0.01` |
+| ResNet-18  |   ReZero  | `6.57 ± 0.14` |
+| ResNet-50  |   ZerO    | `7.78 ± 0.30` (prop.) |
+| ResNet-50  |   Kaiming | `8.74 ± 0.44` |
+| ResNet-50  |   Xavier  | `6.52 ± 0.07` |
+| ResNet-106 |   ZerO    | `9.58 ± 1.04` (prop.) |
+| ResNet-106 |   Kaiming | `11.03 ± 2.76` |
+| ResNet-106 |   Xavier  | `6.91 ± 0.28` |
+| ResNet-106 |   ReZero  | `6.22 ± 0.14` |
 
-Гиперпараметры берутся из статьи для выбранного датасета: CIFAR-10 — ResNet-18, ImageNet — ResNet-50. Опции: `--inits` (подмножество), `--depth`, `--epochs` (для быстрой проверки), `--exp-dir`.
+Видно, что предланаемый метод проиграывает, ошибка у ZerO выше, чем у остальных. На ResNet-50 и ResNet-106 ошибка становится меньше, чему у Kaiming, но всё ещё больше Xavier и ReZero. Для данной задачи метод проигрывает стохастичной инициализации.
 
-Результат в `hw2/experiments/<dataset>_resnet<depth>/`:
 
-| Файл | Содержимое |
-|---|---|
-| `models/last_<tag>_seed<N>.pt` | обученные модели |
-| `runs/run_<tag>_seed<N>.json` | лог каждого запуска |
-| `metrics.json` | все метрики: гиперпараметры, история по эпохам, финальные и лучшие значения, kernel/stable rank, mean ± std по seed |
-| `summary.md` | таблица: top-1 test error и accuracy, mean ± std |
-| `training_curves.png` | loss, top-1 error, test accuracy по эпохам (mean ± std), финальная accuracy |
-| `quality_metrics.png` | top-1 test error и accuracy (финальная и лучшая эпоха), mean ± std, точки — отдельные seed |
-| `stable_rank.png` | stable rank `layer{2,3,4}.0.conv1` по итерациям (Fig. 5): для `W − W_ZerO` и для `W` |
-| `kernel_ranks.png` | ранги ядер всех свёрточных слоёв |
+### Transformer на wikitext
 
-Перестроить графики из готового `metrics.json`, не обучая заново: `--plot-only --exp-dir <папка>`.
 
-### Table 2–3: ResNet-18 / ResNet-50 на CIFAR-10, 10 сидов
+Также авторы статьи предлагают использовать метод для обучения transformer. Этот эксперимент удалось повторить целиком.
 
 ```bash
-.venv/bin/python hw2/src/train.py --depth 18 --inits zero kaiming xavier --seeds 0 1 2 3 4 5 6 7 8 9 --amp
-.venv/bin/python hw2/src/train.py --depth 50 --inits zero kaiming xavier --seeds 0 1 2 3 4 5 6 7 8 9 --amp
+.venv/bin/python hw2/src/train_lm.py   --inits standard zero   --layers 2 4 6 8 10 20   --seeds 0   --epochs 20   --decay-epoch 10   --warmup-epochs 5   --out-dir hw2/experiments/wikitext2_transformer
 ```
 
-Гиперпараметры по статье: SGD lr=0.1, momentum=0.9, weight decay=1e-4, линейный warmup 10 эпох (по итерациям). Расписание после warmup в статье не указано — используется стандартное: 200 эпох, ×0.1 на 100 и 150.
+Таблица посчитанной perplexity
 
-Для каждого запуска сохраняются top-1 test error и accuracy (финальная и лучшая эпоха); `report.py` сводит их в `mean ± std` по сидам.
+| Количество слоёв | 2 | 4 | 6 | 8 | 10 | 20 |
+| ---------------- | - | - | - | - | -- | -- |
+| Standard         | 342.32 | 346.55 | 355.46 | 365.53 | 375.98 | 510.20 |
+| ZerO             | 352.81 | 374.11 | 398.51 | 423.90 | 452.53 | 928.09 |
 
-ImageNet (ResNet-50, warmup 5, 90 эпох): `--dataset imagenet --depth 50 --data-dir <path>` с `train/` и `val/` в формате ImageFolder.
+Полчились расхождения в со статьёй. У авторов perplexity именьшалась с увеличением количества слоёв трансформера. Кроме того, ZerO побеждал по метрике, но получилось всё иначе. В статье не указаны гиперпараметры обучения, поэтому я использовал гиперпараметры из экспериментов с ResNet. 
 
-### Глубина ResNet и Fig. 4: сверхглубокие сети без BN
+Возможно, проблема как раз в этом, либо их метод значительно уступает случайным инициализациям. Причём рост perplexity выглядит реальным, т.к. мы увеличиваем сложность модели без увеличения количества эпох обучения, т.е. модель не успевает выучить нужные зависимости.
 
-`--depth` принимает 18/34/50/101/152 (конфигурации He et al.) или любую глубину `8n+2` (basic) / `12n+2` (`--block bottleneck`). `--norm none` заменяет BN обучаемыми скалярами scale/bias (как в Fixup).
+
+### Обучение без BatchNorm
+
+
+К сожалению, не получилось обучить сверхглубокие сети как в статье из-за малого количества доступной VRAM. Поэтому было решено проверить обучение без BN, т.к. авторы заявляют возможность лучшей сходимости без него как одно из преимуществ метода.
 
 ```bash
-.venv/bin/python hw2/src/train.py --depth 498 --norm none --inits zero kaiming --epochs 15 --amp
+for d in 26 42 58 74 90 106; do   .venv/bin/python hw2/src/run_experiments.py     --dataset cifar10  --lr 0.001    --batch_size 16     --warmup-epochs 5     --depth "$d"     --norm none     --inits zero kaiming xavier rezero     -k 1     --epochs 15     --amp     --exp-dir "hw2/experiments/cifar10_resnet${d}_nobn_lr0001"; done
 ```
 
-### Table 4: Transformer на WikiText-2
+
+### Ранги матриц и оптимизация
+
+
+Команда запуска прунинга и tucker-2 decomposition (декомпозиция свёртки: сначала сжатие каналов до $r_{in}$ с 1x1 размером ядра, потом примение kxk ядра и переход в $r_{out}$ каналов, и потом повышение каналов до $C_{out}$)
 
 ```bash
-.venv/bin/python hw2/src/train_lm.py --layers 2 4 6 8 10 20 --inits standard zero
+.venv/bin/python hw2/src/compress.py   hw2/experiments/cifar10_resnet18/models/last_*_seed0.pt   --tucker-layer layer4.1.conv1
 ```
 
-Модель и обучение как в PyTorch `word_language_model`: d_model=200, 2 головы, SGD lr=20, клиппинг 0.25, 20 эпох с одним понижением lr на 10-й эпохе. ZerO: `W_Q = I`, `W_K = W_V = 0`, feed-forward и out-проекция по Algorithm 1. Метрика — test perplexity модели с лучшей val perplexity.
+Stable rank матриц ведёт себя так же, как и в статье — сначала низкий, потом возрастает. Однако значение ранга кернелов в статье значительно ниже, чем у случайной инициализации, у нас же эти значения почти совпадают.
 
-### Fig. 5–6: ранги, прунинг, Tucker-2
 
-- **Stable rank** первой свёртки 2-й, 3-й и 4-й групп residual-блоков (`layer{2,3,4}.0.conv1`) логируется каждые `--rank-log-interval` итераций в `rank_trajectory`.
-- **Kernel rank** всех свёрток после обучения сохраняется в `kernel_ranks`.
-- Для обоих сохраняются ранг весов `W` и ранг residual-компоненты `W − W_ZerO`, как в коде авторов (они считают ранг `W − I`). У ZerO stable rank самих весов на старте максимальный (identity / Hadamard), поэтому траектория «от низкого ранга к высокому» видна только на residual-компоненте.
+<img src="experiments/cifar10_resnet18/stable_rank.png" alt="rn18" />
+  <figcaption>Рис. 1. Stable rank для ResNet-18</figcaption>
+</figure>
 
-```bash
-.venv/bin/python hw2/src/compress.py hw2/results/last_cifar10_resnet18_bn_zero_seed0.pt \
-                                     hw2/results/last_cifar10_resnet18_bn_kaiming_seed0.pt
-```
+<img src="experiments/cifar10_resnet50/stable_rank.png" alt="rn50" />
+  <figcaption>Рис. 2. Stable rank для ResNet-50</figcaption>
+</figure>
 
-Magnitude pruning: в каждом Conv2d/Linear обнуляется доля весов с наименьшим |w|, без дообучения. Tucker-2: разложение по канальным модам свёртки `layer4.1.conv1` (512→512), HOSVD + HOOI, с перебором рангов.
+<img src="experiments/cifar10_resnet106/stable_rank.png" alt="rn106" />
+  <figcaption>Рис. 3. Stable rank для ResNet-106</figcaption>
+</figure>
 
-### Отчёт
+<img src="experiments/cifar10_resnet18/kernel_rank_vs_layer.png" alt="rn18_ranks" />
+  <figcaption>Рис. 4. Ранг свёрток для каждого слоя</figcaption>
+</figure>
 
-```bash
-.venv/bin/python hw2/src/report.py
-```
 
-Пишет `hw2/results/tables.md` и графики в `hw2/results/figures/`.
+Прунинг и tucker-2 decomposition над ResNet-18 показывает сильное падение качества для ZerO инициализации. Хотя при малом ранге такого быть не должно.
 
-## Отличия от текста статьи
 
-- Нормировка Hadamard `2^{-m/2}` (ортонормированная, как в коде авторов); в тексте статьи напечатано `2^{-(m-1)/2}`.
-- Embedding и выходной слой Transformer инициализируются как в примере PyTorch: статья применяет ZerO только к attention и feed-forward внутри слоёв.
+<img src="experiments/cifar10_resnet18/compression_cifar10_resnet18_bn.png" alt="rn18_ranks" />
+  <figcaption>Рис. 5. Слева график accuracy в зависимости от процента прунинга. Справа график зависимости accuracy от ранга tucker-2 decomposition</figcaption>
+</figure>
+
+### Выводы
+
+
+Результаты получились значительно хуже, чем в статье. Однако stable rank получился таким, как заявляют авторы. Не думаю, что результаты хуже из-за релизации инициализации, потому что технически там нет ничего сложного: инициализация единичной матрицей, подсчёт матрицы Адамара.
+
+Возможно, проблема в гиперпараметрах обучения (lr, scheduling) для тех экспериментов, для которых они не были указаны.
+
+Если же предположить, что реализация пайплайна и ZerO, а также гиперпараметры корретны, то предлагаемый метод не даёт существенного преимущества над случайными инициализациями. Эксперименты не демонстрируют ни качества на глубоких сетях без BN, ни для просто ResNet или Transformer.
+
+Также авторы заявляют, что обучение модели становиться более интерпретируемым и воспроизовдимым, однако они сравниваются только на специфичных конфигурациях: сети без BN, высокий lr.
+
+В результате, предлагаемое решение тяжело назвать применимым, потому что методы случаной инициализации показывают результаты лучше, а проблема воспроизводимости решается фиксацией сида.

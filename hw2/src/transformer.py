@@ -1,5 +1,3 @@
-"""Transformer language model: standard / ZerO / ReZero encoder layers."""
-
 from __future__ import annotations
 
 import math
